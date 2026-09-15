@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>History · ShellGym</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<main class="shell">
+  <header>
+    <div>
+      <a class="brand" href="{{ url_for('index') }}">ShellGym</a>
+      <div class="subtitle">Solved exercise history — JSON, no database</div>
+    </div>
+    <nav>
+      <a class="nav-link" href="{{ url_for('index') }}">Practice</a>
+      <a class="nav-link active" href="{{ url_for('history') }}">History</a>
+    </nav>
+  </header>
+
+  <section class="history-card">
+    <h1>History</h1>
+    <p class="muted-copy">Terminal output is never stored. Only commands and exit codes are kept.</p>
+
+    {% if records %}
+      <div class="history-list">
+      {% for record in records %}
+        <a class="history-item" href="{{ url_for('history_detail', record_id=record.id) }}">
+          <div>
+            <div class="history-title">✓ {{ record.title }}</div>
+            <div class="history-prompt">{{ record.prompt }}</div>
+            <div class="history-tools">{% for tool in record.tools %}<span>{{ tool }}</span>{% endfor %}</div>
+          </div>
+          <div class="history-meta">
+            <div>{{ "★" * record.difficulty }}{{ "☆" * (3-record.difficulty) }}</div>
+            <div>{{ record.dataset_kind }}</div>
+            <div>{{ record.terminal_commands|length }} terminal command{% if record.terminal_commands|length != 1 %}s{% endif %}</div>
+          </div>
+          <div class="history-solutions">
+            <div><strong>Your answer</strong><code>{{ record.accepted_answer }}</code></div>
+            <div><strong>Reference</strong><code>{{ record.reference_solution }}</code></div>
+          </div>
+        </a>
+      {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">Solve an exercise and it will appear here.</div>
+    {% endif %}
+  </section>
+</main>
+</body>
+</html>

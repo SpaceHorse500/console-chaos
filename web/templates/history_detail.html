@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ record.title }} · ShellGym</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<main class="shell">
+  <header>
+    <div><a class="brand" href="{{ url_for('index') }}">ShellGym</a><div class="subtitle">Exercise review</div></div>
+    <nav><a class="nav-link" href="{{ url_for('index') }}">Practice</a><a class="nav-link active" href="{{ url_for('history') }}">History</a></nav>
+  </header>
+
+  <section class="history-card">
+    <div class="difficulty">Difficulty {{ "★" * record.difficulty }}{{ "☆" * (3-record.difficulty) }}</div>
+    <h1>{{ record.title }}</h1>
+    <div class="dataset-kind">{{ record.dataset_kind }}</div>
+    <p class="prompt">{{ record.prompt }}</p>
+    <div class="tools">{% for tool in record.tools %}<span>{{ tool }}</span>{% endfor %}</div>
+
+    <div class="review-block">
+      <h2>Terminal exploration</h2>
+      {% if record.terminal_commands %}
+        <div class="command-history">
+        {% for item in record.terminal_commands %}
+          <div class="command-history-row">
+            <span class="{% if item.exit_code == 0 %}pass{% else %}fail{% endif %}">{% if item.exit_code == 0 %}✓{% else %}✗{% endif %}</span>
+            <code>$ {{ item.command }}</code>
+            <span class="exit-code">exit {{ item.exit_code }}</span>
+          </div>
+        {% endfor %}
+        </div>
+      {% else %}<div class="empty-small">No terminal commands were used.</div>{% endif %}
+    </div>
+
+    <div class="review-block">
+      <h2>Submitted answers</h2>
+      <div class="command-history">
+      {% for item in record.submitted_answers %}
+        <div class="command-history-row">
+          <span class="{% if item.passed %}pass{% else %}fail{% endif %}">{% if item.passed %}✓{% else %}✗{% endif %}</span>
+          <code>$ {{ item.command }}</code>
+          <span class="exit-code">exit {{ item.exit_code }}</span>
+        </div>
+      {% endfor %}
+      </div>
+    </div>
+
+    <div class="review-grid">
+      <div class="review-block"><h2>Your accepted answer</h2><pre>{{ record.accepted_answer }}</pre></div>
+      <div class="review-block"><h2>Reference solution</h2><pre>{{ record.reference_solution }}</pre></div>
+    </div>
+
+    <div class="review-block"><h2>How the reference works</h2><div class="solution-explanation">{{ record.explanation }}</div></div>
+
+    <details class="files">
+      <summary>Generated exercise files</summary>
+      {% for path, content in record.files.items() %}
+        <div class="file-block"><div class="filename">{{ path }}</div><pre>{{ content }}</pre></div>
+      {% endfor %}
+    </details>
+  </section>
+</main>
+</body>
+</html>

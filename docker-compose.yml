@@ -1,0 +1,65 @@
+services:
+  socket-init:
+    image: debian:bookworm-slim
+    container_name: shellgym-socket-init
+    command:
+      - sh
+      - -c
+      - |
+        rm -f /shared/sandbox.sock
+        chmod 0777 /shared
+    volumes:
+      - shellgym-socket:/shared
+    restart: "no"
+
+  sandbox:
+    build:
+      context: ./sandbox
+    container_name: shellgym-sandbox
+    network_mode: "none"
+    volumes:
+      - shellgym-socket:/shared
+      - shellgym-workspace:/workspace
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m
+    mem_limit: 256m
+    pids_limit: 96
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      socket-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "test -S /shared/sandbox.sock"]
+      interval: 2s
+      timeout: 1s
+      retries: 20
+      start_period: 2s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./web
+    container_name: shellgym-web
+    ports:
+      - "127.0.0.1:5000:5000"
+    environment:
+      - FLASK_SECRET_KEY=shellgym-local-dev
+      - SANDBOX_SOCKET=/shared/sandbox.sock
+      - WORKSPACE_ROOT=/workspace
+      - HISTORY_FILE=/data/history.json
+    volumes:
+      - shellgym-socket:/shared
+      - shellgym-workspace:/workspace
+      - shellgym-data:/data
+    depends_on:
+      sandbox:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  shellgym-socket:
+  shellgym-workspace:
+  shellgym-data:

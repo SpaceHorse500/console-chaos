@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ShellGym</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<main class="shell">
+  <header>
+    <div>
+      <a class="brand" href="{{ url_for('index') }}">ShellGym</a>
+      <div class="subtitle">Linux command practice in a disposable Debian sandbox</div>
+    </div>
+    <div class="header-right">
+      <nav>
+        <a class="nav-link active" href="{{ url_for('index') }}">Practice</a>
+        <a class="nav-link" href="{{ url_for('history') }}">History</a>
+      </nav>
+      <div class="status-wrap">
+        <span id="sandbox-dot" class="dot checking"></span>
+        <span id="sandbox-status">Checking sandbox…</span>
+      </div>
+    </div>
+  </header>
+
+  <section class="exercise-card">
+    <div class="exercise-top">
+      <div>
+        <div id="difficulty" class="difficulty">Difficulty {{ "★" * exercise.difficulty }}{{ "☆" * (3-exercise.difficulty) }}</div>
+        <h1 id="title">{{ exercise.title }}</h1>
+        <div id="dataset-kind" class="dataset-kind">{{ exercise.dataset_kind }}</div>
+      </div>
+      <div class="actions">
+        <button id="reset-btn" class="secondary">Reset files</button>
+        <button id="new-btn">New exercise ↻</button>
+      </div>
+    </div>
+
+    <p id="prompt" class="prompt">{{ exercise.prompt }}</p>
+
+    <div id="tools" class="tools">
+      {% for tool in exercise.tools %}<span>{{ tool }}</span>{% endfor %}
+    </div>
+
+    <details class="files" open>
+      <summary>Exercise files</summary>
+      <div id="files">
+        {% for path, content in exercise.files.items() %}
+          <div class="file-block">
+            <div class="filename">{{ path }}</div>
+            <pre>{{ content }}</pre>
+          </div>
+        {% endfor %}
+      </div>
+    </details>
+  </section>
+
+  <section class="terminal-card">
+    <div class="section-title">
+      <div>
+        <h2>Practice terminal</h2>
+        <p>Experiment freely. Only commands + exit codes are saved; terminal output is not.</p>
+      </div>
+      <button id="clear-terminal" class="ghost">Clear screen</button>
+    </div>
+
+    <div id="terminal" class="terminal" tabindex="0">
+      <div class="terminal-intro">Debian GNU/Linux — ShellGym practice workspace</div>
+      <div class="terminal-intro muted">Try ls, cat, head, grep, awk, sed, sort, uniq, wc, find, jq, man…</div>
+      <div id="terminal-output"></div>
+      <div class="terminal-input-row">
+        <span class="prompt-user">student@shellgym</span><span>:</span><span id="cwd">~</span><span>$</span>
+        <input id="terminal-input" autocomplete="off" spellcheck="false" aria-label="Terminal command">
+      </div>
+    </div>
+  </section>
+
+  <section class="answer-card">
+    <div class="section-title">
+      <div>
+        <h2>Answer command</h2>
+        <p>Runs against a fresh copy of the exercise files and is graded by output.</p>
+      </div>
+    </div>
+
+    <div class="answer-row">
+      <span class="answer-dollar">$</span>
+      <input id="answer-input" autocomplete="off" spellcheck="false" placeholder="Enter your final command…">
+      <button id="submit-answer">Check answer</button>
+    </div>
+
+    <div id="result"></div>
+
+    <div id="solved-session" class="solved-session hidden">
+      <h3>Your terminal exploration</h3>
+      <div id="solved-terminal-history" class="command-history"></div>
+      <h3>Submitted answers</h3>
+      <div id="solved-submitted-answers" class="command-history"></div>
+    </div>
+
+    <button id="solution-btn" class="solution-link">Show one solution</button>
+    <div id="solution-panel" class="solution-panel hidden">
+      <h3>Reference command</h3>
+      <pre id="solution"></pre>
+      <h3>How it works</h3>
+      <div id="solution-explanation" class="solution-explanation"></div>
+    </div>
+  </section>
+</main>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
