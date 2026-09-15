@@ -1,7 +1,7 @@
 services:
   socket-init:
     image: debian:bookworm-slim
-    container_name: shellgym-socket-init
+    container_name: console-chaos-socket-init
     command:
       - sh
       - -c
@@ -15,7 +15,7 @@ services:
   sandbox:
     build:
       context: ./sandbox
-    container_name: shellgym-sandbox
+    container_name: console-chaos-sandbox
     network_mode: "none"
     volumes:
       - shellgym-socket:/shared
@@ -42,11 +42,11 @@ services:
   web:
     build:
       context: ./web
-    container_name: shellgym-web
+    container_name: console-chaos-web
     ports:
       - "127.0.0.1:5000:5000"
     environment:
-      - FLASK_SECRET_KEY=shellgym-local-dev
+      - FLASK_SECRET_KEY=console-chaos-local-dev
       - SANDBOX_SOCKET=/shared/sandbox.sock
       - WORKSPACE_ROOT=/workspace
       - HISTORY_FILE=/data/history.json

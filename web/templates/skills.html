@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Skills · {{ app_name }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<main class="shell shell-wide">
+  <header>
+    <div>
+      <a class="brand" href="{{ url_for('index') }}">{{ app_name }}</a>
+      <div class="subtitle">Your command-line skill tree, derived from solved history</div>
+    </div>
+    <nav>
+      <a class="nav-link" href="{{ url_for('index') }}">Practice</a>
+      <a class="nav-link" href="{{ url_for('history') }}">History</a>
+      <a class="nav-link active" href="{{ url_for('skills') }}">Skills</a>
+    </nav>
+  </header>
+
+  <section class="skills-overview">
+    <div class="stat-card"><strong>{{ tree.summary.solved }}</strong><span>Solved exercises</span></div>
+    <div class="stat-card"><strong>{{ tree.summary.comfortable }}</strong><span>Comfortable skills</span></div>
+    <div class="stat-card"><strong>{{ tree.summary.practiced }}</strong><span>Practiced skills</span></div>
+    <div class="stat-card"><strong>{{ tree.summary.learning }}</strong><span>Currently learning</span></div>
+  </section>
+
+  {% if tree.ready_next %}
+  <section class="next-card">
+    <div>
+      <div class="micro-heading">Ready to learn next</div>
+      <h2>Current frontier</h2>
+    </div>
+    <div class="next-skills">
+      {% for item in tree.ready_next %}
+        <span><strong>{{ item.tool }}</strong> · {{ item.name }}</span>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="legend-card">
+    <span class="status-pill status-not_introduced">○ Not introduced</span>
+    <span class="status-pill status-introduced">◔ Introduced</span>
+    <span class="status-pill status-learning">◐ Learning</span>
+    <span class="status-pill status-practiced">● Practiced</span>
+    <span class="status-pill status-comfortable">✓ Comfortable</span>
+  </section>
+
+  <section class="skill-forest">
+    {% for group in tree.tools %}
+      <article class="skill-tree-card">
+        <div class="skill-tree-header">
+          <div>
+            <h2>{{ group.tool }}</h2>
+            <span>{{ group.completed }}/{{ group.total }} practiced or comfortable</span>
+          </div>
+          <div class="tree-progress"><i style="width: {{ (group.completed / group.total * 100) if group.total else 0 }}%"></i></div>
+        </div>
+
+        <div class="skill-tree">
+          {% for node in group.nodes %}
+            <details class="skill-node status-border-{{ node.status }}" {% if node.status != 'not_introduced' %}open{% endif %}>
+              <summary>
+                <span class="tree-connector">{% if not loop.first %}↓{% else %}◆{% endif %}</span>
+                <div class="skill-node-main">
+                  <div class="skill-node-title">
+                    <strong>{{ node.name }}</strong>
+                    <span class="level-chip">L{{ node.level }}</span>
+                  </div>
+                  <div class="skill-node-meta">
+                    <span class="status-pill status-{{ node.status }}">{{ node.status_label }}</span>
+                    {% if node.status == 'not_introduced' and node.ready %}<span class="ready-pill">Ready</span>{% endif %}
+                    {% if node.status == 'not_introduced' and not node.ready %}<span class="locked-pill">Locked</span>{% endif %}
+                  </div>
+                </div>
+              </summary>
+
+              <div class="skill-node-details">
+                {% if node.description %}<p>{{ node.description }}</p>{% endif %}
+                <div class="skill-facts">
+                  <span>{{ node.appearances }} exercise use{% if node.appearances != 1 %}s{% endif %}</span>
+                  <span>{{ node.dataset_count }} dataset type{% if node.dataset_count != 1 %}s{% endif %}</span>
+                  <span>{{ node.integration_uses }} integration use{% if node.integration_uses != 1 %}s{% endif %}</span>
+                  <span>{{ node.challenge_uses }} challenge use{% if node.challenge_uses != 1 %}s{% endif %}</span>
+                </div>
+                {% if node.requires_names %}
+                  <div class="requires"><strong>Requires:</strong> {{ node.requires_names|join(', ') }}</div>
+                {% endif %}
+                {% if node.exercise_ids %}
+                  <div class="evidence-links">
+                    <strong>Evidence:</strong>
+                    {% for rid in node.exercise_ids[-5:] %}
+                      <a href="{{ url_for('history_detail', record_id=rid) }}">#{{ rid }}</a>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+            </details>
+          {% endfor %}
+        </div>
+      </article>
+    {% endfor %}
+  </section>
+</main>
+</body>
+</html>

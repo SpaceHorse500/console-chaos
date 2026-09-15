@@ -3,20 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>ShellGym</title>
+  <title>{{ app_name }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 <main class="shell">
   <header>
     <div>
-      <a class="brand" href="{{ url_for('index') }}">ShellGym</a>
-      <div class="subtitle">Linux command practice in a disposable Debian sandbox</div>
+      <a class="brand" href="{{ url_for('index') }}">{{ app_name }}</a>
+      <div class="subtitle">Adaptive Linux command practice in a disposable Debian sandbox</div>
     </div>
     <div class="header-right">
       <nav>
         <a class="nav-link active" href="{{ url_for('index') }}">Practice</a>
         <a class="nav-link" href="{{ url_for('history') }}">History</a>
+        <a class="nav-link" href="{{ url_for('skills') }}">Skills</a>
       </nav>
       <div class="status-wrap">
         <span id="sandbox-dot" class="dot checking"></span>
@@ -28,9 +29,11 @@
   <section class="exercise-card">
     <div class="exercise-top">
       <div>
-        <div id="difficulty" class="difficulty">Difficulty {{ "★" * exercise.difficulty }}{{ "☆" * (3-exercise.difficulty) }}</div>
+        <div class="exercise-labels">
+          <span id="exercise-style" class="style-badge style-{{ exercise.style }}">{{ exercise.style }}</span>
+          <span id="dataset-kind" class="dataset-kind">{{ exercise.dataset_kind }}</span>
+        </div>
         <h1 id="title">{{ exercise.title }}</h1>
-        <div id="dataset-kind" class="dataset-kind">{{ exercise.dataset_kind }}</div>
       </div>
       <div class="actions">
         <button id="reset-btn" class="secondary">Reset files</button>
@@ -40,8 +43,22 @@
 
     <p id="prompt" class="prompt">{{ exercise.prompt }}</p>
 
-    <div id="tools" class="tools">
-      {% for tool in exercise.tools %}<span>{{ tool }}</span>{% endfor %}
+    <div class="exercise-columns">
+      <div>
+        <div class="micro-heading">Suggested tools</div>
+        <div id="tools" class="tools">
+          {% for tool in exercise.tools %}<span>{{ tool }}</span>{% endfor %}
+        </div>
+      </div>
+
+      <div id="output-contract" class="output-contract">
+        <div class="micro-heading">Desired output</div>
+        <div id="output-label" class="output-label">{{ exercise.output.label }}</div>
+        <pre id="output-example">{{ exercise.output.example }}</pre>
+        <ul id="output-rules" class="output-rules">
+          {% for rule in exercise.output.rules %}<li>{{ rule }}</li>{% endfor %}
+        </ul>
+      </div>
     </div>
 
     <details class="files" open>
@@ -67,11 +84,11 @@
     </div>
 
     <div id="terminal" class="terminal" tabindex="0">
-      <div class="terminal-intro">Debian GNU/Linux — ShellGym practice workspace</div>
+      <div class="terminal-intro">Debian GNU/Linux — Console Chaos practice workspace</div>
       <div class="terminal-intro muted">Try ls, cat, head, grep, awk, sed, sort, uniq, wc, find, jq, man…</div>
       <div id="terminal-output"></div>
       <div class="terminal-input-row">
-        <span class="prompt-user">student@shellgym</span><span>:</span><span id="cwd">~</span><span>$</span>
+        <span class="prompt-user">student@console-chaos</span><span>:</span><span id="cwd">~</span><span>$</span>
         <input id="terminal-input" autocomplete="off" spellcheck="false" aria-label="Terminal command">
       </div>
     </div>
@@ -81,7 +98,7 @@
     <div class="section-title">
       <div>
         <h2>Answer command</h2>
-        <p>Runs against a fresh copy of the exercise files and is graded by output.</p>
+        <p>Runs against a fresh copy of the exercise files and is graded by stdout.</p>
       </div>
     </div>
 
@@ -94,8 +111,12 @@
     <div id="result"></div>
 
     <div id="solved-session" class="solved-session hidden">
+      <h3>Concepts practiced</h3>
+      <div id="solved-skills" class="concept-list"></div>
+
       <h3>Your terminal exploration</h3>
       <div id="solved-terminal-history" class="command-history"></div>
+
       <h3>Submitted answers</h3>
       <div id="solved-submitted-answers" class="command-history"></div>
     </div>

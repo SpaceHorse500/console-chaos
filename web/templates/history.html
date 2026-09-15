@@ -3,19 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>History · ShellGym</title>
+  <title>History · {{ app_name }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 <main class="shell">
   <header>
     <div>
-      <a class="brand" href="{{ url_for('index') }}">ShellGym</a>
+      <a class="brand" href="{{ url_for('index') }}">{{ app_name }}</a>
       <div class="subtitle">Solved exercise history — JSON, no database</div>
     </div>
     <nav>
       <a class="nav-link" href="{{ url_for('index') }}">Practice</a>
       <a class="nav-link active" href="{{ url_for('history') }}">History</a>
+      <a class="nav-link" href="{{ url_for('skills') }}">Skills</a>
     </nav>
   </header>
 
@@ -33,13 +34,23 @@
             <div class="history-tools">{% for tool in record.tools %}<span>{{ tool }}</span>{% endfor %}</div>
           </div>
           <div class="history-meta">
-            <div>{{ "★" * record.difficulty }}{{ "☆" * (3-record.difficulty) }}</div>
+            {% if record.get('style') %}
+              <div><span class="style-badge style-{{ record.style }}">{{ record.style }}</span></div>
+            {% else %}
+              <div><span class="style-badge style-legacy">legacy</span></div>
+            {% endif %}
             <div>{{ record.dataset_kind }}</div>
             <div>{{ record.terminal_commands|length }} terminal command{% if record.terminal_commands|length != 1 %}s{% endif %}</div>
           </div>
           <div class="history-solutions">
-            <div><strong>Your answer</strong><code>{{ record.accepted_answer }}</code></div>
-            <div><strong>Reference</strong><code>{{ record.reference_solution }}</code></div>
+            <div>
+              <strong>Your answer</strong>
+              <code>{{ record.accepted_answer }}</code>
+            </div>
+            <div>
+              <strong>Reference</strong>
+              <code>{{ record.reference_solution }}</code>
+            </div>
           </div>
         </a>
       {% endfor %}

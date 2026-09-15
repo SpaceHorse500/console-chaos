@@ -38,19 +38,19 @@ RUN useradd \
     student
 
 RUN mkdir -p \
-    /opt/shellgym \
+    /opt/console-chaos \
     /workspace/play \
     /workspace/grade \
     /shared \
     && chown -R student:student \
-        /opt/shellgym \
+        /opt/console-chaos \
         /workspace \
         /shared
 
-COPY --chown=student:student agent.py /opt/shellgym/agent.py
+COPY --chown=student:student agent.py /opt/console-chaos/agent.py
 
-WORKDIR /opt/shellgym
+WORKDIR /opt/console-chaos
 
 USER student
 
-CMD ["python3", "/opt/shellgym/agent.py"]
+CMD ["python3", "/opt/console-chaos/agent.py"]

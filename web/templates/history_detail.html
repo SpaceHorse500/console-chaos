@@ -3,62 +3,121 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{{ record.title }} · ShellGym</title>
+  <title>{{ record.title }} · {{ app_name }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 <main class="shell">
   <header>
-    <div><a class="brand" href="{{ url_for('index') }}">ShellGym</a><div class="subtitle">Exercise review</div></div>
-    <nav><a class="nav-link" href="{{ url_for('index') }}">Practice</a><a class="nav-link active" href="{{ url_for('history') }}">History</a></nav>
+    <div>
+      <a class="brand" href="{{ url_for('index') }}">{{ app_name }}</a>
+      <div class="subtitle">Exercise review</div>
+    </div>
+    <nav>
+      <a class="nav-link" href="{{ url_for('index') }}">Practice</a>
+      <a class="nav-link active" href="{{ url_for('history') }}">History</a>
+      <a class="nav-link" href="{{ url_for('skills') }}">Skills</a>
+    </nav>
   </header>
 
   <section class="history-card">
-    <div class="difficulty">Difficulty {{ "★" * record.difficulty }}{{ "☆" * (3-record.difficulty) }}</div>
+    <div class="exercise-labels">
+      <span class="style-badge style-{{ record.get('style', 'legacy') }}">{{ record.get('style', 'legacy') }}</span>
+      <span class="dataset-kind">{{ record.dataset_kind }}</span>
+    </div>
+
     <h1>{{ record.title }}</h1>
-    <div class="dataset-kind">{{ record.dataset_kind }}</div>
     <p class="prompt">{{ record.prompt }}</p>
-    <div class="tools">{% for tool in record.tools %}<span>{{ tool }}</span>{% endfor %}</div>
+
+    <div class="tools">
+      {% for tool in record.tools %}<span>{{ tool }}</span>{% endfor %}
+    </div>
+
+    {% if record.get('output') %}
+      <div class="review-block output-contract compact-output">
+        <div class="micro-heading">Desired output</div>
+        <div class="output-label">{{ record.output.label }}</div>
+        <pre>{{ record.output.example }}</pre>
+        {% if record.output.rules %}
+          <ul class="output-rules">
+            {% for rule in record.output.rules %}<li>{{ rule }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <div class="review-block">
+      <h2>Concepts practiced</h2>
+      {% if skill_details %}
+        <div class="concept-list">
+          {% for item in skill_details %}
+            <div class="concept-chip">
+              <strong>{{ item.tool }}</strong>
+              <span>{{ item.name }}</span>
+              <small>{{ item.role }}</small>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-small">No skill metadata for this older record.</div>
+      {% endif %}
+    </div>
 
     <div class="review-block">
       <h2>Terminal exploration</h2>
       {% if record.terminal_commands %}
         <div class="command-history">
-        {% for item in record.terminal_commands %}
-          <div class="command-history-row">
-            <span class="{% if item.exit_code == 0 %}pass{% else %}fail{% endif %}">{% if item.exit_code == 0 %}✓{% else %}✗{% endif %}</span>
-            <code>$ {{ item.command }}</code>
-            <span class="exit-code">exit {{ item.exit_code }}</span>
-          </div>
-        {% endfor %}
+          {% for item in record.terminal_commands %}
+            <div class="command-history-row">
+              <span class="{% if item.exit_code == 0 %}pass{% else %}fail{% endif %}">{% if item.exit_code == 0 %}✓{% else %}✗{% endif %}</span>
+              <code>$ {{ item.command }}</code>
+              <span class="exit-code">exit {{ item.exit_code }}</span>
+            </div>
+          {% endfor %}
         </div>
-      {% else %}<div class="empty-small">No terminal commands were used.</div>{% endif %}
+      {% else %}
+        <div class="empty-small">No terminal commands were used.</div>
+      {% endif %}
     </div>
 
     <div class="review-block">
       <h2>Submitted answers</h2>
-      <div class="command-history">
-      {% for item in record.submitted_answers %}
-        <div class="command-history-row">
-          <span class="{% if item.passed %}pass{% else %}fail{% endif %}">{% if item.passed %}✓{% else %}✗{% endif %}</span>
-          <code>$ {{ item.command }}</code>
-          <span class="exit-code">exit {{ item.exit_code }}</span>
+      {% if record.submitted_answers %}
+        <div class="command-history">
+          {% for item in record.submitted_answers %}
+            <div class="command-history-row">
+              <span class="{% if item.passed %}pass{% else %}fail{% endif %}">{% if item.passed %}✓{% else %}✗{% endif %}</span>
+              <code>$ {{ item.command }}</code>
+              <span class="exit-code">exit {{ item.exit_code }}</span>
+            </div>
+          {% endfor %}
         </div>
-      {% endfor %}
-      </div>
+      {% endif %}
     </div>
 
     <div class="review-grid">
-      <div class="review-block"><h2>Your accepted answer</h2><pre>{{ record.accepted_answer }}</pre></div>
-      <div class="review-block"><h2>Reference solution</h2><pre>{{ record.reference_solution }}</pre></div>
+      <div class="review-block">
+        <h2>Your accepted answer</h2>
+        <pre>{{ record.accepted_answer }}</pre>
+      </div>
+      <div class="review-block">
+        <h2>Reference solution</h2>
+        <pre>{{ record.reference_solution }}</pre>
+      </div>
     </div>
 
-    <div class="review-block"><h2>How the reference works</h2><div class="solution-explanation">{{ record.explanation }}</div></div>
+    <div class="review-block">
+      <h2>How the reference works</h2>
+      <div class="solution-explanation">{{ record.explanation }}</div>
+    </div>
 
     <details class="files">
       <summary>Generated exercise files</summary>
       {% for path, content in record.files.items() %}
-        <div class="file-block"><div class="filename">{{ path }}</div><pre>{{ content }}</pre></div>
+        <div class="file-block">
+          <div class="filename">{{ path }}</div>
+          <pre>{{ content }}</pre>
+        </div>
       {% endfor %}
     </details>
   </section>

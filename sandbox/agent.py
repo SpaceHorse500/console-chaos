@@ -128,7 +128,7 @@ def main() -> None:
     os.chmod(SOCKET_PATH, 0o666)
     server.listen(32)
 
-    print(f"ShellGym sandbox listening on {SOCKET_PATH}", flush=True)
+    print(f"Console Chaos sandbox listening on {SOCKET_PATH}", flush=True)
 
     while True:
         conn, _ = server.accept()

@@ -19,10 +19,15 @@ def lines(items) -> str:
 
 def words_dataset() -> Dataset:
     values = [random.choice(WORDS) for _ in range(random.randint(24, 50))]
+    numbers = [random.randint(1, 999) for _ in range(random.randint(14, 24))]
     return Dataset(
         kind="words",
-        title="Word list",
-        files={"notes.txt": " ".join(values) + "\n", "words.txt": lines(values)},
+        title="Simple text files",
+        files={
+            "notes.txt": " ".join(values) + "\n",
+            "words.txt": lines(values),
+            "numbers.txt": lines(numbers),
+        },
         records=[{"value": value} for value in values],
     )
 
@@ -32,7 +37,10 @@ def users_dataset() -> Dataset:
     return Dataset(
         kind="users",
         title="User list",
-        files={"users.txt": lines(values)},
+        files={
+            "users.txt": lines(values),
+            "users_sorted.txt": lines(sorted(values)),
+        },
         records=[{"user": value} for value in values],
     )
 
@@ -41,13 +49,15 @@ def requests_csv_dataset() -> Dataset:
     rows = ["ts,ip,method,path,status,bytes,duration_ms"]
     records = []
     start = datetime(2026, 9, 14, 1, 0, 0)
-    for i in range(random.randint(30, 55)):
+    total = random.randint(30, 55)
+    forced_statuses = [404, 500, 502]
+    for i in range(total):
         r = {
             "ts": (start + timedelta(seconds=i * random.randint(2, 7))).strftime("%H:%M:%S"),
             "ip": random.choice(IPS),
             "method": random.choice(["GET", "GET", "GET", "POST", "PUT"]),
             "path": random.choice(PATHS),
-            "status": random.choice([200, 200, 200, 201, 301, 400, 401, 403, 404, 500, 502]),
+            "status": forced_statuses[i] if i < len(forced_statuses) else random.choice([200, 200, 200, 201, 301, 400, 401, 403, 404, 500, 502]),
             "bytes": random.randint(80, 12000),
             "duration_ms": random.randint(5, 1500),
         }
@@ -59,13 +69,15 @@ def requests_csv_dataset() -> Dataset:
 def nginx_dataset() -> Dataset:
     rows, records = [], []
     start = datetime(2026, 9, 14, 1, 15, 0)
-    for i in range(random.randint(32, 58)):
+    total = random.randint(32, 58)
+    forced_statuses = [404, 500, 502]
+    for i in range(total):
         r = {
             "ip": random.choice(IPS),
             "ts": (start + timedelta(seconds=i * random.randint(1, 5))).strftime("%d/%b/%Y:%H:%M:%S +0000"),
             "method": random.choice(["GET", "GET", "GET", "POST"]),
             "path": random.choice(PATHS),
-            "status": random.choice([200, 200, 200, 301, 400, 401, 404, 500, 502]),
+            "status": forced_statuses[i] if i < len(forced_statuses) else random.choice([200, 200, 200, 301, 400, 401, 404, 500, 502]),
             "bytes": random.randint(100, 15000),
             "duration_ms": random.randint(4, 1800),
         }
@@ -77,8 +89,8 @@ def nginx_dataset() -> Dataset:
 def auth_dataset() -> Dataset:
     rows, records = [], []
     minute = 0
-    for _ in range(random.randint(30, 55)):
-        success = random.random() < 0.35
+    for row_index in range(random.randint(30, 55)):
+        success = False if row_index < 2 else random.random() < 0.35
         user, ip = random.choice(USERS), random.choice(IPS)
         pid = random.randint(1000, 9999)
         minute += random.randint(0, 2)
@@ -103,7 +115,7 @@ def app_kv_dataset() -> Dataset:
     for i in range(random.randint(32, 58)):
         r = {
             "ts": (start + timedelta(seconds=i * 3)).isoformat(),
-            "level": random.choice(["INFO", "INFO", "INFO", "WARN", "ERROR"]),
+            "level": "ERROR" if i == 0 else random.choice(["INFO", "INFO", "INFO", "WARN", "ERROR"]),
             "service": random.choice(SERVICES),
             "user": random.choice(USERS),
             "duration_ms": random.randint(5, 1800),
@@ -121,8 +133,8 @@ def jsonl_dataset() -> Dataset:
         r = {
             "ts": (start + timedelta(seconds=i * 4)).isoformat(),
             "service": random.choice(SERVICES),
-            "level": random.choice(["INFO", "INFO", "WARN", "ERROR"]),
-            "status": random.choice([200, 200, 201, 400, 404, 500]),
+            "level": "ERROR" if i == 0 else random.choice(["INFO", "INFO", "WARN", "ERROR"]),
+            "status": 500 if i == 0 else random.choice([200, 200, 201, 400, 404, 500]),
             "duration_ms": random.randint(5, 1600),
             "user": random.choice(USERS),
         }

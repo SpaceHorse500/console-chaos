@@ -10,12 +10,15 @@ from flask import Flask, abort, jsonify, render_template, request, session
 
 from exercises.engine import ExerciseEngine
 from exercises.models import Exercise
+from exercises.skills import SKILLS, record_skill_uses, skill_tree
 from history_store import add_record, get_record, list_records
 from sandbox_client import SandboxClient, SandboxError
 
 
+APP_NAME = "Console Chaos"
+
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "shellgym-local-dev")
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "console-chaos-local-dev")
 app.config["JSON_SORT_KEYS"] = False
 
 engine = ExerciseEngine()
@@ -27,7 +30,7 @@ GRADE = WORKSPACE_ROOT / "grade"
 STUDENT_UID = 1000
 STUDENT_GID = 1000
 
-# Local single-user trainer state. Nothing large is stored in the browser cookie.
+# Local single-user trainer state. Persistent solved history lives in history.json.
 EXERCISES: dict[str, Exercise] = {}
 ACTIVE: dict[str, dict] = {}
 
@@ -91,7 +94,8 @@ def create_exercise() -> Exercise:
         EXERCISES.pop(old_id, None)
         ACTIVE.pop(old_id, None)
 
-    exercise = engine.generate()
+    # The selector learns from solved JSON history, but the concrete data remains random.
+    exercise = engine.generate(list_records())
     eid = uuid.uuid4().hex
     EXERCISES[eid] = exercise
     ACTIVE[eid] = {
@@ -107,15 +111,54 @@ def create_exercise() -> Exercise:
     return exercise
 
 
+def output_payload(exercise: Exercise) -> dict:
+    return {
+        "label": exercise.output.label,
+        "example": exercise.output.example,
+        "rules": exercise.output.rules,
+    }
+
+
 def exercise_payload(exercise: Exercise) -> dict:
+    # Skill IDs intentionally are not sent here: before solving, the UI only exposes
+    # broad suggested tools, not the exact concept Console Chaos selected to teach.
     return {
         "title": exercise.title,
         "prompt": exercise.prompt,
-        "difficulty": exercise.difficulty,
+        "style": exercise.style,
         "tools": exercise.tools,
+        "output": output_payload(exercise),
         "dataset_kind": exercise.dataset_kind,
         "files": exercise.files,
     }
+
+
+def exercise_skill_details(exercise: Exercise) -> list[dict]:
+    details = []
+    for use in exercise.skills:
+        definition = SKILLS[use.skill_id]
+        details.append({
+            "skill_id": use.skill_id,
+            "tool": definition.tool,
+            "name": definition.name,
+            "level": definition.level,
+            "role": use.role,
+        })
+    return details
+
+
+def record_skill_details(record: dict) -> list[dict]:
+    details = []
+    for use in record_skill_uses(record):
+        definition = SKILLS[use["skill_id"]]
+        details.append({
+            "skill_id": use["skill_id"],
+            "tool": definition.tool,
+            "name": definition.name,
+            "level": definition.level,
+            "role": use.get("role", "legacy"),
+        })
+    return details
 
 
 def display_cwd(cwd: str) -> str:
@@ -168,6 +211,11 @@ def log_submission(command: str, exit_code: int, passed: bool) -> None:
     state["submitted_answers"] = state["submitted_answers"][-100:]
 
 
+@app.context_processor
+def inject_globals():
+    return {"app_name": APP_NAME}
+
+
 @app.get("/")
 def index():
     exercise = current_exercise() or create_exercise()
@@ -184,7 +232,20 @@ def history_detail(record_id: int):
     record = get_record(record_id)
     if record is None:
         abort(404)
-    return render_template("history_detail.html", record=record)
+    return render_template(
+        "history_detail.html",
+        record=record,
+        skill_details=record_skill_details(record),
+    )
+
+
+@app.get("/skills")
+def skills():
+    records = list_records()
+    return render_template(
+        "skills.html",
+        tree=skill_tree(records),
+    )
 
 
 @app.get("/api/status")
@@ -300,7 +361,7 @@ def answer():
     if not command:
         return jsonify({"ok": False, "error": "Enter an answer command."}), 400
 
-    # The final answer always runs against pristine exercise files.
+    # Final answers always run against pristine files, independent of terminal edits.
     write_workspace(GRADE, exercise)
 
     try:
@@ -317,10 +378,16 @@ def answer():
 
     if passed and state["history_id"] is None:
         state["history_id"] = add_record({
+            "template_id": exercise.template_id,
             "title": exercise.title,
             "prompt": exercise.prompt,
-            "difficulty": exercise.difficulty,
+            "style": exercise.style,
             "tools": exercise.tools,
+            "skills": [
+                {"skill_id": use.skill_id, "role": use.role}
+                for use in exercise.skills
+            ],
+            "output": output_payload(exercise),
             "dataset_kind": exercise.dataset_kind,
             "files": exercise.files,
             "terminal_commands": list(state["terminal_commands"]),
@@ -339,6 +406,7 @@ def answer():
         "history_id": state["history_id"],
         "terminal_commands": list(state["terminal_commands"]) if passed else None,
         "submitted_answers": list(state["submitted_answers"]) if passed else None,
+        "skills": exercise_skill_details(exercise) if passed else None,
     })
 
 
