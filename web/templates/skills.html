@@ -97,6 +97,16 @@
                     {% endfor %}
                   </div>
                 {% endif %}
+                {% if node.status != 'not_introduced' and node.get('help') %}
+                  <div class="skill-reference">
+                    <h4>Concept reference</h4>
+                    <p>{{ node.help.concept }}</p>
+                    <div class="format-example-label">Syntax</div>
+                    <pre>{{ node.help.syntax }}</pre>
+                    <div class="format-example-label">Generic example</div>
+                    <pre>{{ node.help.example }}</pre>
+                  </div>
+                {% endif %}
               </div>
             </details>
           {% endfor %}

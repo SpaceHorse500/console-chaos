@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from collections import defaultdict
 import re
 
+from .command_analysis import detect_command_skills
+
 
 @dataclass(frozen=True)
 class SkillDefinition:
@@ -314,7 +316,12 @@ def _legacy_skill_ids(record: dict) -> set[str]:
 
 
 def record_skill_uses(record: dict) -> list[dict]:
-    explicit = record.get("skills")
+    """Return skills actually demonstrated by the accepted command.
+
+    New records save this explicitly. Older records are re-analysed from their
+    accepted answer so intended exercise targets are not mistaken for evidence.
+    """
+    explicit = record.get("demonstrated_skills")
     if isinstance(explicit, list) and explicit:
         valid = []
         for item in explicit:
@@ -324,13 +331,34 @@ def record_skill_uses(record: dict) -> list[dict]:
             if skill_id in SKILLS:
                 valid.append({
                     "skill_id": skill_id,
-                    "role": item.get("role", "reinforcement"),
+                    "role": item.get("role", "demonstrated"),
                 })
         if valid:
             return valid
 
+    declared_roles = {}
+    for item in record.get("skills", []) or []:
+        if isinstance(item, dict):
+            skill_id = item.get("skill_id") or item.get("id")
+            if skill_id in SKILLS:
+                declared_roles[skill_id] = item.get("role", "reinforcement")
+
+    command = str(record.get("accepted_answer", ""))
+    detected = sorted(
+        skill_id for skill_id in detect_command_skills(command)
+        if skill_id in SKILLS
+    )
+    if detected:
+        return [
+            {
+                "skill_id": skill_id,
+                "role": declared_roles.get(skill_id, "demonstrated"),
+            }
+            for skill_id in detected
+        ]
+
     return [
-        {"skill_id": skill_id, "role": "legacy"}
+        {"skill_id": skill_id, "role": declared_roles.get(skill_id, "legacy")}
         for skill_id in sorted(_legacy_skill_ids(record))
     ]
 

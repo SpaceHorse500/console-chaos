@@ -8,6 +8,8 @@ import uuid
 
 from flask import Flask, abort, jsonify, render_template, request, session
 
+from exercises.command_analysis import detect_command_skills, validate_allowed_tools
+from exercises.concept_help import get_help
 from exercises.engine import ExerciseEngine
 from exercises.models import Exercise
 from exercises.skills import SKILLS, record_skill_uses, skill_tree
@@ -102,6 +104,7 @@ def create_exercise() -> Exercise:
         "terminal_cwd": ".",
         "terminal_commands": [],
         "submitted_answers": [],
+        "hints_used": [],
         "history_id": None,
     }
     session["exercise_id"] = eid
@@ -111,54 +114,100 @@ def create_exercise() -> Exercise:
     return exercise
 
 
+def human_output_label(label: str) -> str:
+    acronyms = {"IP", "HTTP", "CPU", "PID", "JSON", "CSV", "URL", "ID"}
+    if label.strip().upper() == "NUMBER":
+        return "One number"
+    words = label.strip().split()
+    rendered = []
+    for index, word in enumerate(words):
+        upper = word.upper()
+        if upper in acronyms:
+            rendered.append(upper)
+        elif index == 0:
+            rendered.append(word.capitalize())
+        else:
+            rendered.append(word.lower())
+    return " ".join(rendered)
+
+
+def resolution_mode(exercise: Exercise) -> str:
+    return "restricted" if exercise.style == "focused" else "open"
+
+
 def output_payload(exercise: Exercise) -> dict:
     return {
-        "label": exercise.output.label,
+        "label": human_output_label(exercise.output.label),
+        "raw_label": exercise.output.label,
         "example": exercise.output.example,
         "rules": exercise.output.rules,
     }
 
 
 def exercise_payload(exercise: Exercise) -> dict:
-    # Skill IDs intentionally are not sent here: before solving, the UI only exposes
-    # broad suggested tools, not the exact concept Console Chaos selected to teach.
+    # Exact target concepts stay hidden until the learner opens Concept help.
+    mode = resolution_mode(exercise)
     return {
         "title": exercise.title,
         "prompt": exercise.prompt,
         "style": exercise.style,
         "tools": exercise.tools,
+        "resolution_mode": mode,
+        "allowed_tools": exercise.tools if mode == "restricted" else [],
         "output": output_payload(exercise),
         "dataset_kind": exercise.dataset_kind,
         "files": exercise.files,
     }
 
 
+def _skill_detail(skill_id: str, role: str) -> dict:
+    definition = SKILLS[skill_id]
+    return {
+        "skill_id": skill_id,
+        "tool": definition.tool,
+        "name": definition.name,
+        "level": definition.level,
+        "role": role,
+    }
+
+
 def exercise_skill_details(exercise: Exercise) -> list[dict]:
+    return [_skill_detail(use.skill_id, use.role) for use in exercise.skills]
+
+
+def target_skill_ids(exercise: Exercise) -> list[str]:
+    targets = [use.skill_id for use in exercise.skills if use.role == "target"]
+    return targets or [use.skill_id for use in exercise.skills]
+
+
+def demonstrated_skill_details(exercise: Exercise, command: str) -> list[dict]:
+    declared = {use.skill_id: use.role for use in exercise.skills}
+    detected = sorted(
+        skill_id for skill_id in detect_command_skills(command)
+        if skill_id in SKILLS
+    )
+    return [
+        _skill_detail(skill_id, declared.get(skill_id, "demonstrated"))
+        for skill_id in detected
+    ]
+
+
+def record_focus_skill_details(record: dict) -> list[dict]:
     details = []
-    for use in exercise.skills:
-        definition = SKILLS[use.skill_id]
-        details.append({
-            "skill_id": use.skill_id,
-            "tool": definition.tool,
-            "name": definition.name,
-            "level": definition.level,
-            "role": use.role,
-        })
+    for item in record.get("skills", []) or []:
+        if not isinstance(item, dict):
+            continue
+        skill_id = item.get("skill_id") or item.get("id")
+        if skill_id in SKILLS:
+            details.append(_skill_detail(skill_id, item.get("role", "reinforcement")))
     return details
 
 
 def record_skill_details(record: dict) -> list[dict]:
-    details = []
-    for use in record_skill_uses(record):
-        definition = SKILLS[use["skill_id"]]
-        details.append({
-            "skill_id": use["skill_id"],
-            "tool": definition.tool,
-            "name": definition.name,
-            "level": definition.level,
-            "role": use.get("role", "legacy"),
-        })
-    return details
+    return [
+        _skill_detail(use["skill_id"], use.get("role", "demonstrated"))
+        for use in record_skill_uses(record)
+    ]
 
 
 def display_cwd(cwd: str) -> str:
@@ -199,21 +248,35 @@ def log_terminal(command: str, exit_code: int) -> None:
     state["terminal_commands"] = state["terminal_commands"][-300:]
 
 
-def log_submission(command: str, exit_code: int, passed: bool) -> None:
+def log_submission(
+    command: str,
+    exit_code: int,
+    passed: bool,
+    reason: str | None = None,
+    output_matches: bool | None = None,
+    restriction_failed: bool = False,
+) -> None:
     state = current_state()
     if state is None:
         return
-    state["submitted_answers"].append({
+    item = {
         "command": command,
         "exit_code": int(exit_code),
         "passed": bool(passed),
-    })
+    }
+    if reason:
+        item["reason"] = reason
+    if output_matches is not None:
+        item["output_matches"] = bool(output_matches)
+    if restriction_failed:
+        item["restriction_failed"] = True
+    state["submitted_answers"].append(item)
     state["submitted_answers"] = state["submitted_answers"][-100:]
 
 
 @app.context_processor
 def inject_globals():
-    return {"app_name": APP_NAME}
+    return {"app_name": APP_NAME, "human_output_label": human_output_label}
 
 
 @app.get("/")
@@ -235,6 +298,7 @@ def history_detail(record_id: int):
     return render_template(
         "history_detail.html",
         record=record,
+        focus_skill_details=record_focus_skill_details(record),
         skill_details=record_skill_details(record),
     )
 
@@ -242,10 +306,17 @@ def history_detail(record_id: int):
 @app.get("/skills")
 def skills():
     records = list_records()
-    return render_template(
-        "skills.html",
-        tree=skill_tree(records),
-    )
+    tree = skill_tree(records)
+    for group in tree["tools"]:
+        for node in group["nodes"]:
+            help_item = get_help(node["skill_id"], node["name"], node["tool"])
+            node["help"] = {
+                "concept": help_item.concept,
+                "syntax": help_item.syntax,
+                "example": help_item.example,
+                "hint": help_item.hint,
+            }
+    return render_template("skills.html", tree=tree)
 
 
 @app.get("/api/status")
@@ -349,6 +420,47 @@ def terminal():
     })
 
 
+@app.post("/api/concept-help")
+def concept_help():
+    exercise = current_exercise()
+    state = current_state()
+    if exercise is None or state is None:
+        return jsonify({"ok": False, "error": "No active exercise."}), 400
+
+    data = request.get_json(silent=True) or {}
+    stage = str(data.get("stage", "concept")).strip().lower()
+    if stage not in {"concept", "syntax", "hint"}:
+        return jsonify({"ok": False, "error": "Unknown help stage."}), 400
+
+    if stage not in state["hints_used"]:
+        state["hints_used"].append(stage)
+
+    items = []
+    for skill_id in target_skill_ids(exercise):
+        definition = SKILLS[skill_id]
+        help_item = get_help(skill_id, definition.name, definition.tool)
+        item = {
+            "skill_id": skill_id,
+            "tool": definition.tool,
+            "name": definition.name,
+        }
+        if stage == "concept":
+            item["content"] = help_item.concept
+        elif stage == "syntax":
+            item["content"] = help_item.syntax
+            item["example"] = help_item.example
+        else:
+            item["content"] = help_item.hint
+        items.append(item)
+
+    return jsonify({
+        "ok": True,
+        "stage": stage,
+        "items": items,
+        "hints_used": list(state["hints_used"]),
+    })
+
+
 @app.post("/api/answer")
 def answer():
     exercise = current_exercise()
@@ -361,7 +473,14 @@ def answer():
     if not command:
         return jsonify({"ok": False, "error": "Enter an answer command."}), 400
 
-    # Final answers always run against pristine files, independent of terminal edits.
+    mode = resolution_mode(exercise)
+    tool_check = validate_allowed_tools(command, exercise.tools)
+    restriction_failed = mode == "restricted" and not tool_check["ok"]
+
+    # Always execute the submitted command against pristine files, even when a
+    # Focused exercise forbids one of its tools. This lets the learner see the
+    # important distinction between "the output worked" and "the technique is
+    # allowed for this exercise".
     write_workspace(GRADE, exercise)
 
     try:
@@ -369,24 +488,59 @@ def answer():
     except SandboxError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 503
 
-    passed = (
+    output_matches = (
         result.exit_code == 0
         and normalize(result.stdout) == normalize(exercise.expected)
     )
 
-    log_submission(command, result.exit_code, passed)
+    demonstrated = demonstrated_skill_details(exercise, command)
+    demonstrated_ids = {item["skill_id"] for item in demonstrated}
+    targets = target_skill_ids(exercise)
+    missing_targets = [skill_id for skill_id in targets if skill_id not in demonstrated_ids]
+
+    # Focused exercises require both the allowed tool set and the target
+    # concept. Integration/challenge exercises remain open-ended.
+    focus_met = mode != "restricted" or not missing_targets
+    passed = output_matches and focus_met and not restriction_failed
+
+    reason = None
+    if restriction_failed:
+        reason = "restricted_tools"
+    elif output_matches and not focus_met:
+        reason = "focus_not_demonstrated"
+    elif not output_matches:
+        reason = "output_mismatch"
+
+    log_submission(
+        command,
+        result.exit_code,
+        passed,
+        reason,
+        output_matches=output_matches,
+        restriction_failed=restriction_failed,
+    )
 
     if passed and state["history_id"] is None:
+        declared_roles = {use.skill_id: use.role for use in exercise.skills}
         state["history_id"] = add_record({
             "template_id": exercise.template_id,
             "title": exercise.title,
             "prompt": exercise.prompt,
             "style": exercise.style,
+            "resolution_mode": mode,
             "tools": exercise.tools,
             "skills": [
                 {"skill_id": use.skill_id, "role": use.role}
                 for use in exercise.skills
             ],
+            "demonstrated_skills": [
+                {
+                    "skill_id": item["skill_id"],
+                    "role": declared_roles.get(item["skill_id"], "demonstrated"),
+                }
+                for item in demonstrated
+            ],
+            "hints_used": list(state["hints_used"]),
             "output": output_payload(exercise),
             "dataset_kind": exercise.dataset_kind,
             "files": exercise.files,
@@ -397,16 +551,31 @@ def answer():
             "explanation": exercise.explanation,
         })
 
+    missing_details = [
+        _skill_detail(skill_id, "target")
+        for skill_id in missing_targets
+    ]
+
     return jsonify({
         "ok": True,
         "passed": passed,
+        "output_matches": output_matches,
+        "restriction_failed": restriction_failed,
+        "focus_failed": bool(output_matches and not focus_met and not restriction_failed),
+        "resolution_mode": mode,
+        "allowed_tools": tool_check["allowed_tools"],
+        "detected_tools": tool_check["detected_tools"],
+        "forbidden_tools": tool_check["forbidden_tools"],
         "exit_code": result.exit_code,
         "stdout": result.stdout,
         "stderr": result.stderr,
         "history_id": state["history_id"],
         "terminal_commands": list(state["terminal_commands"]) if passed else None,
         "submitted_answers": list(state["submitted_answers"]) if passed else None,
-        "skills": exercise_skill_details(exercise) if passed else None,
+        "exercise_focus": exercise_skill_details(exercise) if passed else None,
+        "skills": demonstrated,
+        "missing_focus": missing_details if output_matches and not focus_met else [],
+        "hints_used": list(state["hints_used"]),
     })
 
 

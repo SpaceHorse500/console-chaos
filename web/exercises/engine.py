@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 
 from .datasets import DATASET_GENERATORS
+from .dynamic_tasks import build_dynamic_exercises
 from .skills import SKILLS, STATUS_ORDER, build_progress, prerequisites_ready
 from .tasks import TASKS_BY_KIND
 
@@ -16,6 +17,7 @@ class ExerciseEngine:
             dataset = dataset_factory()
             for task in TASKS_BY_KIND.get(dataset.kind, []):
                 candidates.append(task(dataset))
+            candidates.extend(build_dynamic_exercises(dataset))
         return candidates
 
     @staticmethod
@@ -108,6 +110,15 @@ class ExerciseEngine:
             for record in records[:7]
             if record.get("template_id")
         }
+        recent_datasets = [
+            record.get("dataset_kind")
+            for record in records[:8]
+            if record.get("dataset_kind")
+        ]
+        dataset_use_count = sum(
+            1 for record in records
+            if record.get("dataset_kind") == exercise.dataset_kind
+        )
 
         # Within each style, choose skills near the current learning frontier.
         if exercise.style == "focused":
@@ -154,6 +165,23 @@ class ExerciseEngine:
 
         if exercise.template_id in recent_templates:
             score -= 8.0
+
+        # Keep the domain/data shape varied as well as the command concept. A
+        # different field combination in the same CSV is useful, but repeatedly
+        # seeing the same dataset family still feels repetitive.
+        if recent_datasets:
+            if exercise.dataset_kind == recent_datasets[0]:
+                score -= 5.0
+            elif exercise.dataset_kind in recent_datasets[:3]:
+                score -= 2.5
+            elif exercise.dataset_kind in recent_datasets[:6]:
+                score -= 1.0
+
+        # Mild long-term balancing: underused dataset families get a small lift.
+        if records:
+            average_uses = len(records) / max(len(DATASET_GENERATORS), 1)
+            if dataset_use_count < average_uses:
+                score += min((average_uses - dataset_use_count) * 0.25, 2.0)
 
         return score
 

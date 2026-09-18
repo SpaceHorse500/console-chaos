@@ -24,19 +24,18 @@
     <div class="exercise-labels">
       <span class="style-badge style-{{ record.get('style', 'legacy') }}">{{ record.get('style', 'legacy') }}</span>
       <span class="dataset-kind">{{ record.dataset_kind }}</span>
+      {% set mode = record.get('resolution_mode', 'restricted' if record.get('style') == 'focused' else 'open') %}
+      <span class="resolution-badge {{ mode }}">{{ mode }} solution</span>
     </div>
 
     <h1>{{ record.title }}</h1>
     <p class="prompt">{{ record.prompt }}</p>
 
-    <div class="tools">
-      {% for tool in record.tools %}<span>{{ tool }}</span>{% endfor %}
-    </div>
-
     {% if record.get('output') %}
-      <div class="review-block output-contract compact-output">
-        <div class="micro-heading">Desired output</div>
-        <div class="output-label">{{ record.output.label }}</div>
+      <div class="review-block output-contract">
+        <div class="micro-heading">Output format</div>
+        <div class="output-label">{{ human_output_label(record.output.label) }}</div>
+        <div class="format-example-label">Format example</div>
         <pre>{{ record.output.example }}</pre>
         {% if record.output.rules %}
           <ul class="output-rules">
@@ -47,7 +46,24 @@
     {% endif %}
 
     <div class="review-block">
-      <h2>Concepts practiced</h2>
+      <h2>Exercise focus</h2>
+      {% if focus_skill_details %}
+        <div class="concept-list">
+          {% for item in focus_skill_details %}
+            <div class="concept-chip">
+              <strong>{{ item.tool }}</strong>
+              <span>{{ item.name }}</span>
+              <small>{{ item.role }}</small>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-small">No declared focus metadata for this older record.</div>
+      {% endif %}
+    </div>
+
+    <div class="review-block">
+      <h2>Skills demonstrated by your accepted answer</h2>
       {% if skill_details %}
         <div class="concept-list">
           {% for item in skill_details %}
@@ -59,9 +75,18 @@
           {% endfor %}
         </div>
       {% else %}
-        <div class="empty-small">No skill metadata for this older record.</div>
+        <div class="empty-small">No concepts were confidently inferred from the saved command.</div>
       {% endif %}
     </div>
+
+    {% if record.get('hints_used') %}
+      <div class="review-block">
+        <h2>Help used</h2>
+        <div class="help-used">
+          {% for stage in record.hints_used %}<span>✓ {{ {'concept':'Concept','syntax':'Syntax','hint':'Stronger hint'}.get(stage, stage) }}</span>{% endfor %}
+        </div>
+      </div>
+    {% endif %}
 
     <div class="review-block">
       <h2>Terminal exploration</h2>
@@ -85,10 +110,20 @@
       {% if record.submitted_answers %}
         <div class="command-history">
           {% for item in record.submitted_answers %}
+            {% set output_worked = item.get('output_matches', false) %}
+            {% set restricted = item.get('restriction_failed', false) %}
             <div class="command-history-row">
-              <span class="{% if item.passed %}pass{% else %}fail{% endif %}">{% if item.passed %}✓{% else %}✗{% endif %}</span>
+              <span class="{% if item.passed %}pass{% elif output_worked %}partial{% else %}fail{% endif %}">
+                {% if item.passed %}✓{% elif output_worked %}◇{% else %}✗{% endif %}
+              </span>
               <code>$ {{ item.command }}</code>
-              <span class="exit-code">exit {{ item.exit_code }}</span>
+              <span class="exit-code">
+                exit {{ item.exit_code }}
+                {% if restricted and output_worked %} · output correct, restricted
+                {% elif restricted %} · restricted
+                {% elif item.get('reason') == 'focus_not_demonstrated' and output_worked %} · output correct, focus missing
+                {% endif %}
+              </span>
             </div>
           {% endfor %}
         </div>

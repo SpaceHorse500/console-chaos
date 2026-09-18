@@ -6,13 +6,14 @@
   <title>{{ app_name }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
-<main class="shell">
-  <header>
-    <div>
+<body class="practice-page">
+<main class="practice-shell">
+  <header class="practice-header">
+    <div class="header-brand-wrap">
       <a class="brand" href="{{ url_for('index') }}">{{ app_name }}</a>
-      <div class="subtitle">Adaptive Linux command practice in a disposable Debian sandbox</div>
+      <div class="subtitle">Adaptive Linux command practice</div>
     </div>
+
     <div class="header-right">
       <nav>
         <a class="nav-link active" href="{{ url_for('index') }}">Practice</a>
@@ -26,108 +27,214 @@
     </div>
   </header>
 
-  <section class="exercise-card">
-    <div class="exercise-top">
-      <div>
+  <section class="practice-workspace">
+    <aside class="problem-pane">
+      <div class="problem-pane-head">
         <div class="exercise-labels">
           <span id="exercise-style" class="style-badge style-{{ exercise.style }}">{{ exercise.style }}</span>
           <span id="dataset-kind" class="dataset-kind">{{ exercise.dataset_kind }}</span>
+          <span id="resolution-badge" class="resolution-badge {% if exercise.style == 'focused' %}restricted{% else %}open{% endif %}">
+            {% if exercise.style == 'focused' %}restricted{% else %}open{% endif %}
+          </span>
         </div>
+
+        <div class="problem-actions">
+          <button id="reset-btn" class="ghost" title="Restore the exercise files">Reset</button>
+          <button id="new-btn" class="secondary">New ↻</button>
+        </div>
+      </div>
+
+      <div class="problem-title-wrap">
         <h1 id="title">{{ exercise.title }}</h1>
+        <p id="prompt" class="prompt">{{ exercise.prompt }}</p>
       </div>
-      <div class="actions">
-        <button id="reset-btn" class="secondary">Reset files</button>
-        <button id="new-btn">New exercise ↻</button>
+
+      <div class="pane-tabs" role="tablist" aria-label="Exercise panels">
+        <button class="pane-tab active" data-tab-target="problem" type="button">Problem</button>
+        <button class="pane-tab" data-tab-target="files" type="button">Files</button>
+        <button class="pane-tab" data-tab-target="help" type="button">Help</button>
+        <button id="review-tab-button" class="pane-tab hidden" data-tab-target="review" type="button">Review</button>
       </div>
-    </div>
 
-    <p id="prompt" class="prompt">{{ exercise.prompt }}</p>
+      <div class="problem-pane-body">
+        <section class="pane-panel active" data-tab-panel="problem">
+          <div id="output-contract" class="output-contract">
+            <div class="micro-heading">Output format</div>
+            <div id="output-label" class="output-label">{{ human_output_label(exercise.output.label) }}</div>
+            <div class="format-example-label">Format example</div>
+            <pre id="output-example">{{ exercise.output.example }}</pre>
+            <ul id="output-rules" class="output-rules">
+              {% for rule in exercise.output.rules %}<li>{{ rule }}</li>{% endfor %}
+            </ul>
+          </div>
 
-    <div class="exercise-columns">
-      <div>
-        <div class="micro-heading">Suggested tools</div>
-        <div id="tools" class="tools">
-          {% for tool in exercise.tools %}<span>{{ tool }}</span>{% endfor %}
+          <div class="tool-guidance compact-section">
+            <div id="tools-heading" class="micro-heading">
+              {% if exercise.style == 'focused' %}Allowed tools{% else %}Suggested tools{% endif %}
+            </div>
+            <div id="tools" class="tools">
+              {% for tool in exercise.tools %}<span>{{ tool }}</span>{% endfor %}
+            </div>
+            <p id="resolution-note" class="resolution-note">
+              {% if exercise.style == 'focused' %}
+                Focused exercise: the final answer may only use the listed tools. Shell syntax such as pipes/redirection is still allowed when relevant.
+              {% else %}
+                Open solution: these are suggestions. Any command producing the required stdout is valid.
+              {% endif %}
+            </p>
+          </div>
+        </section>
+
+        <section class="pane-panel" data-tab-panel="files">
+          <div class="panel-heading-row">
+            <div>
+              <div class="micro-heading">Exercise workspace</div>
+              <h2>Files</h2>
+            </div>
+            <span class="panel-hint">You can also inspect them from the terminal.</span>
+          </div>
+          <div id="files" class="files-compact">
+            {% for path, content in exercise.files.items() %}
+              <details class="file-block file-detail" {% if loop.first %}open{% endif %}>
+                <summary class="filename">{{ path }}</summary>
+                <pre>{{ content }}</pre>
+              </details>
+            {% endfor %}
+          </div>
+        </section>
+
+        <section class="pane-panel" data-tab-panel="help">
+          <div class="help-launch">
+            <div>
+              <div class="micro-heading">Exercise-aware documentation</div>
+              <h2>Concept help</h2>
+              <p>Learn the target concept with unrelated examples, without revealing this exercise's answer.</p>
+            </div>
+            <button id="concept-help-btn" class="secondary">Explain concept</button>
+          </div>
+
+          <div id="concept-help-panel" class="concept-help-panel hidden">
+            <div class="concept-help-header">
+              <div>
+                <div class="micro-heading">Help level</div>
+                <strong id="concept-help-stage-title">Concept</strong>
+              </div>
+              <div class="help-stage-actions">
+                <button id="help-syntax-btn" class="ghost hidden">Show syntax</button>
+                <button id="help-hint-btn" class="ghost hidden">Stronger hint</button>
+              </div>
+            </div>
+            <div id="concept-help-content"></div>
+            <p class="concept-help-footnote">Examples use unrelated data so they teach the concept rather than give away the exercise.</p>
+          </div>
+
+          <div class="reference-reveal">
+            <div>
+              <div class="micro-heading">Still stuck?</div>
+              <p>Reveal one valid reference solution and its explanation.</p>
+            </div>
+            <button id="solution-btn" class="solution-link">Show one solution</button>
+          </div>
+
+          <div id="solution-panel" class="solution-panel hidden">
+            <h3>Reference command</h3>
+            <pre id="solution"></pre>
+            <h3>How it works</h3>
+            <div id="solution-explanation" class="solution-explanation"></div>
+          </div>
+        </section>
+
+        <section id="solved-session" class="pane-panel solved-session" data-tab-panel="review">
+          <div class="review-success-heading">
+            <span class="pass">✓</span>
+            <div>
+              <div class="micro-heading">Solved</div>
+              <h2>Exercise review</h2>
+            </div>
+          </div>
+
+          <h3>Exercise focus</h3>
+          <div id="exercise-focus-skills" class="concept-list"></div>
+
+          <h3>Skills demonstrated by your answer</h3>
+          <div id="solved-skills" class="concept-list"></div>
+
+          <div id="help-used-wrap" class="hidden">
+            <h3>Help used</h3>
+            <div id="help-used" class="help-used"></div>
+          </div>
+
+          <h3>Your terminal exploration</h3>
+          <div id="solved-terminal-history" class="command-history"></div>
+
+          <h3>Submitted answers</h3>
+          <div id="solved-submitted-answers" class="command-history"></div>
+        </section>
+      </div>
+    </aside>
+
+    <div
+      id="workspace-resizer"
+      class="workspace-resizer"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Resize problem and terminal panes"
+      tabindex="0"
+    ></div>
+
+    <section class="terminal-pane">
+      <div class="terminal-pane-head">
+        <div>
+          <div class="micro-heading">Debian sandbox</div>
+          <h2>Practice terminal</h2>
+        </div>
+        <div class="terminal-head-actions">
+          <button id="reset-layout-btn" class="ghost" title="Restore the default pane sizes">Reset layout</button>
+          <button id="clear-terminal" class="ghost">Clear</button>
         </div>
       </div>
 
-      <div id="output-contract" class="output-contract">
-        <div class="micro-heading">Desired output</div>
-        <div id="output-label" class="output-label">{{ exercise.output.label }}</div>
-        <pre id="output-example">{{ exercise.output.example }}</pre>
-        <ul id="output-rules" class="output-rules">
-          {% for rule in exercise.output.rules %}<li>{{ rule }}</li>{% endfor %}
-        </ul>
+      <div id="terminal" class="terminal terminal-workspace" tabindex="0">
+        <div class="terminal-intro">Debian GNU/Linux — Console Chaos practice workspace</div>
+        <div class="terminal-intro muted">Try ls, cat, head, grep, awk, sed, sort, uniq, wc, find, jq, man…</div>
+        <div id="terminal-output"></div>
+        <div class="terminal-input-row">
+          <span class="prompt-user">student@console-chaos</span><span>:</span><span id="cwd">~</span><span>$</span>
+          <input id="terminal-input" autocomplete="off" spellcheck="false" aria-label="Terminal command">
+        </div>
       </div>
-    </div>
-
-    <details class="files" open>
-      <summary>Exercise files</summary>
-      <div id="files">
-        {% for path, content in exercise.files.items() %}
-          <div class="file-block">
-            <div class="filename">{{ path }}</div>
-            <pre>{{ content }}</pre>
-          </div>
-        {% endfor %}
-      </div>
-    </details>
+    </section>
   </section>
 
-  <section class="terminal-card">
-    <div class="section-title">
-      <div>
-        <h2>Practice terminal</h2>
-        <p>Experiment freely. Only commands + exit codes are saved; terminal output is not.</p>
+  <section id="answer-dock" class="answer-dock" aria-label="Answer command">
+    <div
+      id="answer-resizer"
+      class="answer-resizer"
+      role="separator"
+      aria-orientation="horizontal"
+      aria-label="Resize answer panel"
+      tabindex="0"
+    ><span></span></div>
+    <div class="answer-main-row">
+      <div class="answer-prefix">
+        <span class="answer-dollar">$</span>
+        <span class="answer-label">Answer</span>
       </div>
-      <button id="clear-terminal" class="ghost">Clear screen</button>
-    </div>
-
-    <div id="terminal" class="terminal" tabindex="0">
-      <div class="terminal-intro">Debian GNU/Linux — Console Chaos practice workspace</div>
-      <div class="terminal-intro muted">Try ls, cat, head, grep, awk, sed, sort, uniq, wc, find, jq, man…</div>
-      <div id="terminal-output"></div>
-      <div class="terminal-input-row">
-        <span class="prompt-user">student@console-chaos</span><span>:</span><span id="cwd">~</span><span>$</span>
-        <input id="terminal-input" autocomplete="off" spellcheck="false" aria-label="Terminal command">
-      </div>
-    </div>
-  </section>
-
-  <section class="answer-card">
-    <div class="section-title">
-      <div>
-        <h2>Answer command</h2>
-        <p>Runs against a fresh copy of the exercise files and is graded by stdout.</p>
-      </div>
-    </div>
-
-    <div class="answer-row">
-      <span class="answer-dollar">$</span>
       <input id="answer-input" autocomplete="off" spellcheck="false" placeholder="Enter your final command…">
       <button id="submit-answer">Check answer</button>
+      <button id="next-btn" class="next-btn hidden">Next exercise →</button>
+      <button id="dock-toggle-btn" class="ghost dock-toggle-btn" type="button" aria-expanded="true">Collapse</button>
     </div>
 
-    <div id="result"></div>
-
-    <div id="solved-session" class="solved-session hidden">
-      <h3>Concepts practiced</h3>
-      <div id="solved-skills" class="concept-list"></div>
-
-      <h3>Your terminal exploration</h3>
-      <div id="solved-terminal-history" class="command-history"></div>
-
-      <h3>Submitted answers</h3>
-      <div id="solved-submitted-answers" class="command-history"></div>
+    <div id="answer-mode-copy" class="answer-mode-copy">
+      {% if exercise.style == 'focused' %}
+        Focused: stdout + target concept/tool restriction.
+      {% else %}
+        Open: graded by stdout against a fresh copy of the files.
+      {% endif %}
     </div>
 
-    <button id="solution-btn" class="solution-link">Show one solution</button>
-    <div id="solution-panel" class="solution-panel hidden">
-      <h3>Reference command</h3>
-      <pre id="solution"></pre>
-      <h3>How it works</h3>
-      <div id="solution-explanation" class="solution-explanation"></div>
-    </div>
+    <div id="result" class="answer-result"></div>
   </section>
 </main>
 <script src="{{ url_for('static', filename='app.js') }}"></script>
