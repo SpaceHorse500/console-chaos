@@ -4,6 +4,7 @@ import random
 
 from .datasets import DATASET_GENERATORS
 from .dynamic_tasks import build_dynamic_exercises
+from .expanded_tasks import build_expanded_exercises
 from .skills import SKILLS, STATUS_ORDER, build_progress, prerequisites_ready
 from .tasks import TASKS_BY_KIND
 
@@ -18,6 +19,7 @@ class ExerciseEngine:
             for task in TASKS_BY_KIND.get(dataset.kind, []):
                 candidates.append(task(dataset))
             candidates.extend(build_dynamic_exercises(dataset))
+            candidates.extend(build_expanded_exercises(dataset))
         return candidates
 
     @staticmethod

@@ -34,6 +34,36 @@ SKILLS: dict[str, SkillDefinition] = {
         "shell.redirection.input", "shell", "Input redirection", 1,
         description="Feed a file to stdin with <.",
     ),
+    "shell.redirection.output": SkillDefinition(
+        "shell.redirection.output", "shell", "Output redirection (>)", 2,
+        description="Write stdout to a file, replacing its contents.",
+    ),
+    "shell.redirection.append": SkillDefinition(
+        "shell.redirection.append", "shell", "Append redirection (>>)", 2,
+        ("shell.redirection.output",),
+        "Append stdout to a file without replacing existing contents.",
+    ),
+    "shell.redirection.stderr": SkillDefinition(
+        "shell.redirection.stderr", "shell", "stderr redirection (2>)", 3,
+        description="Redirect standard error separately from standard output.",
+    ),
+    "shell.boolean.and": SkillDefinition(
+        "shell.boolean.and", "shell", "Conditional AND (&&)", 2,
+        description="Run the next command only when the previous command succeeds.",
+    ),
+    "shell.boolean.or": SkillDefinition(
+        "shell.boolean.or", "shell", "Conditional OR (||)", 2,
+        description="Run the next command only when the previous command fails.",
+    ),
+    "shell.sequence": SkillDefinition(
+        "shell.sequence", "shell", "Command sequencing (;)", 2,
+        description="Run commands sequentially regardless of the previous exit status.",
+    ),
+    "shell.subshell": SkillDefinition(
+        "shell.subshell", "shell", "Subshell grouping", 3,
+        ("shell.sequence",),
+        "Group commands with parentheses so their combined output can be redirected or piped.",
+    ),
 
     # awk
     "awk.fields": SkillDefinition(
@@ -116,6 +146,46 @@ SKILLS: dict[str, SkillDefinition] = {
         ("grep.regex",),
         "Use alternation and richer regular expressions.",
     ),
+    "grep.ignore_case": SkillDefinition(
+        "grep.ignore_case", "grep", "Case-insensitive matching (-i)", 2,
+        ("grep.literal",),
+        "Match text without treating uppercase and lowercase as different.",
+    ),
+    "grep.fixed": SkillDefinition(
+        "grep.fixed", "grep", "Fixed strings (-F)", 2,
+        ("grep.literal",),
+        "Treat the search pattern literally instead of as a regular expression.",
+    ),
+    "grep.word": SkillDefinition(
+        "grep.word", "grep", "Whole-word matching (-w)", 2,
+        ("grep.literal",),
+        "Match a word only at word boundaries.",
+    ),
+    "grep.count": SkillDefinition(
+        "grep.count", "grep", "Count matches (-c)", 2,
+        ("grep.literal",),
+        "Print the number of matching lines instead of the lines themselves.",
+    ),
+    "grep.line_numbers": SkillDefinition(
+        "grep.line_numbers", "grep", "Line numbers (-n)", 2,
+        ("grep.literal",),
+        "Prefix matching lines with their input line number.",
+    ),
+    "grep.multiple_patterns": SkillDefinition(
+        "grep.multiple_patterns", "grep", "Multiple patterns (-e)", 3,
+        ("grep.literal",),
+        "Match any of several independent patterns in one grep command.",
+    ),
+    "grep.context": SkillDefinition(
+        "grep.context", "grep", "Context lines (-A/-B/-C)", 3,
+        ("grep.literal",),
+        "Include lines before or after each match for surrounding context.",
+    ),
+    "grep.recursive": SkillDefinition(
+        "grep.recursive", "grep", "Recursive search (-r/-R)", 3,
+        ("grep.literal",),
+        "Search files recursively below a directory.",
+    ),
 
     # sort
     "sort.basic": SkillDefinition(
@@ -142,6 +212,31 @@ SKILLS: dict[str, SkillDefinition] = {
         ("sort.keys", "sort.numeric_reverse"),
         "Use primary and tie-breaker sort keys.",
     ),
+    "sort.delimiter": SkillDefinition(
+        "sort.delimiter", "sort", "Field delimiter (-t)", 4,
+        ("sort.keys",),
+        "Choose a delimiter so sort keys line up with delimited columns.",
+    ),
+    "sort.human": SkillDefinition(
+        "sort.human", "sort", "Human-readable numbers (-h)", 3,
+        ("sort.basic",),
+        "Sort values such as 900K, 12M and 2G by their numeric magnitude.",
+    ),
+    "sort.version": SkillDefinition(
+        "sort.version", "sort", "Version sorting (-V)", 3,
+        ("sort.basic",),
+        "Sort strings containing version-like numeric components naturally.",
+    ),
+    "sort.month": SkillDefinition(
+        "sort.month", "sort", "Month sorting (-M)", 3,
+        ("sort.basic",),
+        "Sort leading month names in calendar order.",
+    ),
+    "sort.stable": SkillDefinition(
+        "sort.stable", "sort", "Stable sorting (-s)", 4,
+        ("sort.keys",),
+        "Preserve original input order when selected sort keys compare equal.",
+    ),
 
     # uniq
     "uniq.basic": SkillDefinition(
@@ -153,10 +248,36 @@ SKILLS: dict[str, SkillDefinition] = {
         ("uniq.basic",),
         "Prefix duplicate groups with their count.",
     ),
+    "uniq.duplicates_only": SkillDefinition(
+        "uniq.duplicates_only", "uniq", "Repeated groups only (-d)", 2,
+        ("uniq.basic",),
+        "Print one copy of each adjacent value that occurs more than once.",
+    ),
+    "uniq.unique_only": SkillDefinition(
+        "uniq.unique_only", "uniq", "Unique groups only (-u)", 2,
+        ("uniq.basic",),
+        "Print only adjacent groups that occur exactly once.",
+    ),
+    "uniq.ignore_case": SkillDefinition(
+        "uniq.ignore_case", "uniq", "Ignore case (-i)", 3,
+        ("uniq.basic",),
+        "Compare adjacent lines without case differences.",
+    ),
+    "uniq.skip_fields": SkillDefinition(
+        "uniq.skip_fields", "uniq", "Skip fields (-f)", 3,
+        ("uniq.basic",),
+        "Ignore one or more leading fields when comparing adjacent lines.",
+    ),
 
     # wc
     "wc.lines": SkillDefinition("wc.lines", "wc", "Count lines", 1),
     "wc.words": SkillDefinition("wc.words", "wc", "Count words", 1),
+    "wc.bytes": SkillDefinition("wc.bytes", "wc", "Count bytes (-c)", 2, ("wc.lines",)),
+    "wc.chars": SkillDefinition("wc.chars", "wc", "Count characters (-m)", 2, ("wc.words",)),
+    "wc.multiple": SkillDefinition(
+        "wc.multiple", "wc", "Multiple counts together", 2,
+        description="Request more than one wc metric in a single command.",
+    ),
 
     # sed
     "sed.substitute": SkillDefinition(
@@ -168,11 +289,69 @@ SKILLS: dict[str, SkillDefinition] = {
         ("sed.substitute",),
         "Replace every matching occurrence on each line.",
     ),
+    "sed.address": SkillDefinition(
+        "sed.address", "sed", "Line / pattern addressing", 2,
+        ("sed.substitute",),
+        "Apply a sed command only to a selected line or matching address.",
+    ),
+    "sed.range": SkillDefinition(
+        "sed.range", "sed", "Address ranges", 3,
+        ("sed.address",),
+        "Apply a command across a line or pattern range.",
+    ),
+    "sed.delete": SkillDefinition(
+        "sed.delete", "sed", "Delete selected lines (d)", 2,
+        description="Remove lines selected by an address or pattern.",
+    ),
+    "sed.print_only": SkillDefinition(
+        "sed.print_only", "sed", "Selective printing (-n / p)", 2,
+        description="Suppress default output and explicitly print selected lines.",
+    ),
+    "sed.backrefs": SkillDefinition(
+        "sed.backrefs", "sed", "Capture groups & backreferences", 4,
+        ("sed.substitute",),
+        "Capture parts of a match and reuse them in the replacement.",
+    ),
+    "sed.multiple_expr": SkillDefinition(
+        "sed.multiple_expr", "sed", "Multiple expressions (-e)", 3,
+        ("sed.substitute",),
+        "Apply several sed expressions in one command.",
+    ),
+    "sed.iac": SkillDefinition(
+        "sed.iac", "sed", "Insert / append / change (i/a/c)", 4,
+        ("sed.address",),
+        "Insert, append, or replace whole lines at selected addresses.",
+    ),
 
     # find
     "find.name_type": SkillDefinition(
         "find.name_type", "find", "Name & type filters", 1,
         description="Search recursively with -type and -name.",
+    ),
+    "find.size": SkillDefinition(
+        "find.size", "find", "Size filters (-size)", 2,
+        ("find.name_type",),
+        "Select files by size using byte or larger size units.",
+    ),
+    "find.depth": SkillDefinition(
+        "find.depth", "find", "Depth limits", 2,
+        ("find.name_type",),
+        "Limit traversal with -maxdepth or -mindepth.",
+    ),
+    "find.logic": SkillDefinition(
+        "find.logic", "find", "Predicate logic", 3,
+        ("find.name_type",),
+        "Combine find predicates with AND, OR and NOT.",
+    ),
+    "find.exec": SkillDefinition(
+        "find.exec", "find", "Actions with -exec", 4,
+        ("find.name_type",),
+        "Run another command for each path selected by find.",
+    ),
+    "find.path": SkillDefinition(
+        "find.path", "find", "Path matching (-path)", 2,
+        ("find.name_type",),
+        "Match against the full relative path rather than only the basename.",
     ),
 
     # jq
@@ -190,11 +369,73 @@ SKILLS: dict[str, SkillDefinition] = {
         ("jq.field",),
         "Filter JSON objects using a condition.",
     ),
+    "jq.boolean": SkillDefinition(
+        "jq.boolean", "jq", "Boolean logic", 3,
+        ("jq.select",),
+        "Combine JSON conditions with and, or and not.",
+    ),
+    "jq.multi_field": SkillDefinition(
+        "jq.multi_field", "jq", "Multiple-field output", 2,
+        ("jq.field",),
+        "Emit more than one field from each JSON object in a controlled output shape.",
+    ),
+    "jq.arrays": SkillDefinition(
+        "jq.arrays", "jq", "Arrays & indexing", 3,
+        ("jq.field",),
+        "Read array elements and construct or iterate JSON arrays.",
+    ),
+    "jq.length": SkillDefinition(
+        "jq.length", "jq", "length", 3,
+        ("jq.arrays",),
+        "Count array elements or measure JSON strings/objects with length.",
+    ),
+    "jq.map": SkillDefinition(
+        "jq.map", "jq", "map()", 4,
+        ("jq.arrays",),
+        "Apply an expression to every element of an array.",
+    ),
+    "jq.sort_by": SkillDefinition(
+        "jq.sort_by", "jq", "sort_by()", 4,
+        ("jq.arrays",),
+        "Sort an array of JSON objects by a selected expression.",
+    ),
+    "jq.group_by": SkillDefinition(
+        "jq.group_by", "jq", "group_by()", 5,
+        ("jq.arrays",),
+        "Group array elements by a JSON field or expression.",
+    ),
+    "jq.unique_by": SkillDefinition(
+        "jq.unique_by", "jq", "unique_by()", 5,
+        ("jq.arrays",),
+        "Keep one object for each distinct value of a selected expression.",
+    ),
+    "jq.minmax": SkillDefinition(
+        "jq.minmax", "jq", "min_by() / max_by()", 4,
+        ("jq.arrays",),
+        "Select the object with the minimum or maximum value for a field.",
+    ),
+    "jq.nested": SkillDefinition(
+        "jq.nested", "jq", "Nested field paths", 3,
+        ("jq.field",),
+        "Traverse nested objects with chained .field paths.",
+    ),
+    "jq.construct": SkillDefinition(
+        "jq.construct", "jq", "Construct objects", 4,
+        ("jq.field",),
+        "Build new JSON objects from selected or transformed fields.",
+    ),
 
     # small pipeline utilities
     "head.basic": SkillDefinition("head.basic", "head", "Take first lines", 1),
-    "tail.basic": SkillDefinition("tail.basic", "tail", "Select trailing/ranged lines", 1),
+    "head.bytes": SkillDefinition("head.bytes", "head", "Take first bytes (-c)", 2, ("head.basic",)),
+    "tail.basic": SkillDefinition("tail.basic", "tail", "Take last lines", 1),
+    "tail.from_line": SkillDefinition("tail.from_line", "tail", "Start at line N (-n +N)", 2, ("tail.basic",)),
+    "tail.bytes": SkillDefinition("tail.bytes", "tail", "Take last bytes (-c)", 2, ("tail.basic",)),
     "cut.fields": SkillDefinition("cut.fields", "cut", "Delimited fields", 1),
+    "cut.multiple_fields": SkillDefinition("cut.multiple_fields", "cut", "Multiple fields", 2, ("cut.fields",)),
+    "cut.range": SkillDefinition("cut.range", "cut", "Field ranges", 2, ("cut.fields",)),
+    "cut.complement": SkillDefinition("cut.complement", "cut", "Complement fields", 3, ("cut.fields",)),
+    "cut.characters": SkillDefinition("cut.characters", "cut", "Character positions (-c)", 2),
 }
 
 

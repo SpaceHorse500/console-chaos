@@ -132,3 +132,22 @@ Focused answers that use forbidden tools are still executed against the fresh gr
 Console Chaos tells you separately whether the output itself was correct and whether the
 method is allowed for that Focused exercise. Restricted-but-correct answers do not advance
 that focused skill until you solve it with the required technique.
+
+## v7 curriculum expansion
+
+The non-AWK curriculum now has much broader concept coverage while keeping AWK as a core tool. New focused templates teach and grade the actual target syntax rather than only the final stdout.
+
+Expanded areas include:
+
+- `grep`: `-i`, `-F`, `-w`, `-c`, `-n`, multiple `-e` patterns, context lines, recursive search
+- `sort`: custom delimiters, human-readable sizes, version order, month order, stable sorting
+- `uniq`: repeated-only, unique-only, case-insensitive comparison, skipped comparison fields
+- `sed`: addresses, ranges, delete, selective print, capture/backreferences, multiple expressions, whole-line change
+- `find`: size, depth, predicate logic, `-exec`, full-path matching
+- `jq`: boolean logic, multiple-field output, arrays/indexing, `length`, `map`, `sort_by`, `group_by`, `unique_by`, `min_by`/`max_by`, nested paths, object construction
+- `wc`: bytes, characters, multiple metrics
+- `head` / `tail`: byte ranges and `tail -n +N`
+- `cut`: multiple fields, ranges, complements, fixed character positions
+- shell composition: output/append/stderr redirection, `&&`, `||`, `;`, and subshell grouping
+
+These concepts have matching exercise templates that reuse the existing dataset families, so command variety grows without removing the randomized data/field grammar introduced in v6.
